@@ -21,15 +21,18 @@ enum SnapshotCommand {
     }
 
     private static func writeMenu(_ readout: Readout, to path: String) {
+        let interval: TimeInterval = 1
         func menu(_ scheme: ColorScheme) -> some View {
             VStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(Metric.allCases.enumerated()), id: \.offset) { i, metric in
-                    if i > 0 { Divider().padding(.horizontal, 14).padding(.vertical, 5) }
-                    MetricDetail(readout: readout, metric: metric)
+                ForEach(DropdownPanel.panels(for: Metric.allCases), id: \.self) { panel in
+                    // The network card shows the pointer resting on its graph, to review hover.
+                    PanelView(
+                        readout: readout, panel: panel, interval: interval,
+                        previewHover: panel == .card(.network) ? 20 : nil)
                 }
             }
             .padding(.vertical, 6)
-            .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
+            .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 14))
             .environment(\.colorScheme, scheme)
         }
         let renderer = ImageRenderer(

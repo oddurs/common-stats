@@ -166,29 +166,3 @@ private struct BarPreview: View {
         .accessibilityLabel("Preview: \(renderer.accessibilityText(model.readout))")
     }
 }
-
-/// A System Settings–style icon: a white glyph on a tinted rounded square.
-private struct IconTile: View {
-    let metric: Metric
-
-    var body: some View {
-        Image(systemName: metric.symbol)
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 22, height: 22)
-            .background(tint.gradient, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-            .accessibilityHidden(true)
-    }
-
-    private var tint: Color {
-        switch metric {
-        case .cpu: .blue
-        case .gpu: .purple
-        case .memory: .pink
-        case .network: .cyan
-        case .disk: .orange
-        case .storage: .gray
-        case .battery: .green
-        }
-    }
-}
