@@ -56,9 +56,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.removeAllItems()
         let visible = model.layout.visible.map(\.metric)
         let metrics = (visible.isEmpty ? Metric.allCases : visible).filter(isAvailable)
-        for (i, metric) in metrics.enumerated() {
-            if i > 0 { menu.addItem(.separator()) }
-            menu.addItem(hosted(LiveMetricDetail(model: model, metric: metric)))
+        for panel in DropdownPanel.panels(for: metrics) {
+            menu.addItem(hosted(LivePanel(model: model, panel: panel)))
         }
         if !metrics.isEmpty { menu.addItem(.separator()) }
 
