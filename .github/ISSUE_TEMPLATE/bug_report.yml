@@ -1,0 +1,36 @@
+name: Bug report
+description: Something shows the wrong value, looks wrong, or misbehaves.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Include what StatBar showed and what you expected. For a wrong value, say what Activity Monitor or a command-line tool shows for the same thing.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: StatBar version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac model
+      placeholder: "macOS 26.5, MacBook Pro M4 Pro"
+    validations:
+      required: true
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot
+      description: Optional, but helpful for anything visual.

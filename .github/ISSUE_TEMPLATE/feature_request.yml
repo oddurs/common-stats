@@ -1,0 +1,16 @@
+name: Feature request
+description: Suggest a metric, a display style, or a behaviour.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to see or do that StatBar doesn't support?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Suggested approach
+      description: For a new metric, say where the data comes from if you know. StatBar only uses public, unprivileged sources.

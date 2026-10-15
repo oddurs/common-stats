@@ -1,0 +1,10 @@
+# StatBar has no package dependencies, so GitHub Actions is the only ecosystem to watch.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        update-types: [minor, patch]
