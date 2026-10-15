@@ -1,8 +1,9 @@
 # StatBar
 
+[![CI](https://github.com/oddurs/statbar/actions/workflows/ci.yml/badge.svg)](https://github.com/oddurs/statbar/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-System stats in the macOS menu bar: CPU, GPU, memory, network, disk activity, storage, and battery. Small type, small graphs, nothing else.
+System stats in the macOS menu bar: CPU, GPU, memory, network, disk activity, storage, and battery. Small type, small graphs, nothing else. **[oddurs.github.io/statbar](https://oddurs.github.io/statbar/)**
 
 ![StatBar in light and dark menu bars](docs/bar.png)
 

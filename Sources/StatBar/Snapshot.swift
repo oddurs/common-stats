@@ -39,8 +39,7 @@ enum SnapshotCommand {
             content: HStack(alignment: .top, spacing: 24) {
                 menu(.light); menu(.dark)
             }
-            .padding(24)
-            .background(Color.gray.opacity(0.5)))
+            .padding(24))
         renderer.scale = 2
         guard let image = renderer.nsImage, let tiff = image.tiffRepresentation,
             let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:])
