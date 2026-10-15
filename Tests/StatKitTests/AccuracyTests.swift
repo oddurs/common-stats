@@ -26,8 +26,11 @@ struct AccuracyTests {
         let cols = row.split(separator: " ", omittingEmptySubsequences: true)
         let ibytes = try #require(UInt64(cols[cols.count - 5]))
         let (sampled, _) = try #require(NetworkSampler.counters(for: lo))
-        #expect(sampled >= ibytes)
-        #expect(sampled - ibytes < 50_000_000)
+        // The kernel publishes interface statistics in batches, so two readers
+        // a moment apart can see snapshots that differ in either direction
+        // (CI saw ours 337 bytes behind netstat's). Agreement, not ordering.
+        let difference = sampled > ibytes ? sampled - ibytes : ibytes - sampled
+        #expect(difference < 50_000_000, "sampled \(sampled), netstat \(ibytes)")
     }
 
     @Test func memoryMatchesVMStat() throws {
