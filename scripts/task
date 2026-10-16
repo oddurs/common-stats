@@ -60,6 +60,7 @@ build)
     lipo -create $bins -output "$app/Contents/MacOS/StatBar"
     cp Resources/Info.plist "$app/Contents/"
     cp Resources/AppIcon.icns "$app/Contents/Resources/"
+    cp -R Resources/CommonTools "$app/Contents/Resources/"
     # Ad-hoc signature: enough for Gatekeeper on the building machine and for SMAppService.
     codesign --force --sign - --options runtime "$app"
     echo "==> built $app"

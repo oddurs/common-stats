@@ -36,7 +36,7 @@ Click the item to open the dropdown. It shows cards and gauge tiles for the metr
 
 ![The dropdown in light and dark](docs/bar-menu.png)
 
-In Settings, choose a style for each metric (Value, Graph, Gauge, or Don't Show), drag to reorder, and set labels, density, update interval, and **Open at login**.
+Settings has four sections. **Items**: choose a style for each metric (Value, Graph, Gauge, or Don't Show) and drag to reorder. **Appearance**: **Show labels** and **Density**. **General**: **Open at login** and **Update every**. **Common Tools**: the other apps in the family, with **Open** for the ones installed and **Get…** for the rest, and Common Stats' version at the foot.
 
 If the item lands behind the camera housing or a menu bar manager on first launch, Common Stats opens Settings to explain what happened. Settings keeps showing that notice while the item is hidden. Open Common Stats again from Finder or Spotlight at any time to get Settings.
 

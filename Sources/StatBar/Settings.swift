@@ -56,7 +56,7 @@ struct SettingsView: View {
                 }
                 .onMove { model.layout.items.move(fromOffsets: $0, toOffset: $1) }
             } header: {
-                Text("Menu Bar")
+                Text("Items")
             } footer: {
                 Text("Drag to reorder. Items appear left to right.")
                     .font(.footnote)
@@ -71,27 +71,21 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle("Open at login", isOn: openAtLogin)
                 Picker("Update every", selection: $model.layout.interval) {
                     ForEach(BarLayout.intervals, id: \.self) { s in
                         Text(s == 1 ? "1 second" : "\(s.formatted()) seconds")
                     }
                 }
-                Toggle("Open at login", isOn: openAtLogin)
             } header: {
                 Text("General")
             } footer: {
-                VStack(spacing: 6) {
-                    if let loginError {
-                        Text(loginError).foregroundStyle(.secondary)
-                    }
-                    if let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String {
-                        Text("Common Stats \(version)").foregroundStyle(.tertiary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 8)
-                    }
+                if let loginError {
+                    Text(loginError).font(.footnote).foregroundStyle(.secondary)
                 }
-                .font(.footnote)
             }
+
+            CommonToolsSection()
         }
         .formStyle(.grouped)
         .frame(width: 460)
