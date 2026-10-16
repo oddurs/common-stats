@@ -119,6 +119,10 @@ public struct BarLayout: Codable, Equatable, Sendable {
     public var showCaptions: Bool
     public var density: Density
     public var interval: TimeInterval
+    public var palette: Palette
+    /// Colour graphs and gauges in the menu bar too. Off, the bar is a
+    /// monochrome template image like the system's own menu bar icons.
+    public var colorInMenuBar: Bool
 
     public static let intervals: [TimeInterval] = [0.5, 1, 2, 3, 5]
 
@@ -128,15 +132,20 @@ public struct BarLayout: Codable, Equatable, Sendable {
             BarItem(.gpu, .hidden), BarItem(.disk, .hidden), BarItem(.storage, .hidden),
             BarItem(.battery, .hidden),
         ],
-        showCaptions: true, density: .regular, interval: 1)
+        showCaptions: true, density: .regular, interval: 1, palette: .accent, colorInMenuBar: false)
 
     public var visible: [BarItem] { items.filter { $0.style != .hidden } }
 
-    public init(items: [BarItem], showCaptions: Bool, density: Density, interval: TimeInterval) {
+    public init(
+        items: [BarItem], showCaptions: Bool, density: Density, interval: TimeInterval,
+        palette: Palette = .accent, colorInMenuBar: Bool = false
+    ) {
         self.items = items
         self.showCaptions = showCaptions
         self.density = density
         self.interval = interval
+        self.palette = palette
+        self.colorInMenuBar = colorInMenuBar
         normalize()
     }
 
@@ -147,7 +156,19 @@ public struct BarLayout: Codable, Equatable, Sendable {
         showCaptions = try c.decodeIfPresent(Bool.self, forKey: .showCaptions) ?? d.showCaptions
         density = try c.decodeIfPresent(Density.self, forKey: .density) ?? d.density
         interval = try c.decodeIfPresent(TimeInterval.self, forKey: .interval) ?? d.interval
+        // An unknown palette from a newer version falls back rather than discarding the whole layout.
+        palette = (try? c.decodeIfPresent(Palette.self, forKey: .palette)) ?? d.palette
+        colorInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .colorInMenuBar) ?? d.colorInMenuBar
         normalize()
+    }
+
+    /// Moves `metric` to where `target` is: after it when moving down,
+    /// before it when moving up, which is where a drop on that row lands.
+    public mutating func move(_ metric: Metric, onto target: Metric) {
+        guard metric != target, let from = items.firstIndex(where: { $0.metric == metric }),
+            let to = items.firstIndex(where: { $0.metric == target })
+        else { return }
+        items.insert(items.remove(at: from), at: to)
     }
 
     /// Repairs a stored layout from an older or newer version: drops

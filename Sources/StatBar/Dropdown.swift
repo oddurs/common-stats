@@ -29,7 +29,7 @@ struct LivePanel: View {
     let panel: DropdownPanel
 
     var body: some View {
-        PanelView(readout: model.readout, panel: panel, interval: model.layout.interval)
+        PanelView(readout: model.readout, panel: panel, interval: model.layout.interval, palette: model.layout.palette)
     }
 }
 
@@ -37,16 +37,21 @@ struct PanelView: View {
     let readout: Readout
     let panel: DropdownPanel
     let interval: TimeInterval
+    let palette: Palette
     var previewHover: Int?
 
     var body: some View {
         Group {
             switch panel {
             case .card(let metric):
-                MetricCard(readout: readout, metric: metric, interval: interval, previewHover: previewHover)
+                MetricCard(
+                    readout: readout, metric: metric, interval: interval, ink: Ink(palette.color(for: metric)),
+                    previewHover: previewHover)
             case .tiles(let metrics):
                 HStack(spacing: 8) {
-                    ForEach(metrics, id: \.self) { MetricTile(readout: readout, metric: $0) }
+                    ForEach(metrics, id: \.self) {
+                        MetricTile(readout: readout, metric: $0, ink: Ink(palette.color(for: $0)))
+                    }
                 }
             }
         }
@@ -62,6 +67,7 @@ private struct MetricCard: View {
     let readout: Readout
     let metric: Metric
     let interval: TimeInterval
+    let ink: Ink
     let previewHover: Int?
 
     var body: some View {
@@ -91,8 +97,8 @@ private struct MetricCard: View {
             let (inGlyph, outGlyph) = metric == .network ? ("↓", "↑") : ("R", "W")
             // The glyphs take their graph colours, so the header doubles as the legend.
             HStack(spacing: 10) {
-                Reading(glyph: inGlyph, value: r.map { Format.rate($0.inbound) }, ink: Ink.strong)
-                Reading(glyph: outGlyph, value: r.map { Format.rate($0.outbound) }, ink: Ink.medium)
+                Reading(glyph: inGlyph, value: r.map { Format.rate($0.inbound) }, ink: ink.strong)
+                Reading(glyph: outGlyph, value: r.map { Format.rate($0.outbound) }, ink: ink.medium)
             }
             .font(.system(size: 13, weight: .semibold).monospacedDigit())
             .lineLimit(1)
@@ -121,17 +127,18 @@ private struct MetricCard: View {
     @ViewBuilder private var cpu: some View {
         HistoryChart(
             up: [
-                ChartSeries(name: "CPU", history: readout.primary[.cpu], ink: Ink.strong, emphasis: true),
-                ChartSeries(name: "System", history: readout.secondary[.cpu], ink: Ink.soft, emphasis: false),
+                ChartSeries(name: "CPU", history: readout.primary[.cpu], ink: ink.strong, emphasis: true),
+                ChartSeries(name: "System", history: readout.secondary[.cpu], ink: ink.soft, emphasis: false),
             ],
             scale: .fraction, interval: interval, format: Format.percent, previewHover: previewHover)
         if let c = readout.latest.cpu {
             Facts([
-                Fact("User", Format.percent(c.user), key: Ink.strong),
-                Fact("System", Format.percent(c.system), key: Ink.soft),
+                Fact("User", Format.percent(c.user), key: ink.strong),
+                Fact("System", Format.percent(c.system), key: ink.soft),
                 Fact("Idle", Format.percent(1 - c.total)),
             ])
-            CoreClusters(cores: c.cores, topology: .current, width: DropdownPanel.width - 16 - cardInset * 2)
+            CoreClusters(
+                cores: c.cores, topology: .current, ink: ink.strong, width: DropdownPanel.width - 16 - cardInset * 2)
             Facts([
                 Fact(
                     "Load",
@@ -148,17 +155,17 @@ private struct MetricCard: View {
             HStack(spacing: 8) {
                 Segments(
                     fractions: [m.app, m.wired, m.compressed].map { Double($0) / Double(m.total) },
-                    inks: [Ink.strong, Ink.medium, Ink.soft])
+                    inks: [ink.strong, ink.medium, ink.soft])
                 PressurePill(pressure: m.pressure)
             }
             HistoryChart(
-                up: [ChartSeries(name: "Used", history: readout.primary[.memory], ink: Ink.strong, emphasis: true)],
+                up: [ChartSeries(name: "Used", history: readout.primary[.memory], ink: ink.strong, emphasis: true)],
                 scale: .fraction, interval: interval, format: Format.percent, height: 30, previewHover: previewHover)
             Facts(
                 [
-                    Fact("App", Format.memory(m.app), key: Ink.strong),
-                    Fact("Wired", Format.memory(m.wired), key: Ink.medium),
-                    Fact("Compressed", Format.memory(m.compressed), key: Ink.soft),
+                    Fact("App", Format.memory(m.app), key: ink.strong),
+                    Fact("Wired", Format.memory(m.wired), key: ink.medium),
+                    Fact("Compressed", Format.memory(m.compressed), key: ink.soft),
                     Fact("Cached", Format.memory(m.cached)),
                     Fact("Swap", Format.memory(m.swapUsed)),
                 ], columns: 2)
@@ -170,12 +177,12 @@ private struct MetricCard: View {
         HistoryChart(
             up: [
                 ChartSeries(
-                    name: network ? "Upload" : "Write", history: readout.secondary[metric], ink: Ink.medium,
+                    name: network ? "Upload" : "Write", history: readout.secondary[metric], ink: ink.medium,
                     emphasis: true)
             ],
             down: [
                 ChartSeries(
-                    name: network ? "Download" : "Read", history: readout.primary[metric], ink: Ink.strong,
+                    name: network ? "Download" : "Read", history: readout.primary[metric], ink: ink.strong,
                     emphasis: true)
             ],
             scale: .rate(floor: metric.rateFloor), interval: interval, format: { Format.rate($0) },
@@ -219,6 +226,7 @@ private struct Reading: View {
 private struct MetricTile: View {
     let readout: Readout
     let metric: Metric
+    let ink: Ink
 
     var body: some View {
         Card {
@@ -229,7 +237,7 @@ private struct MetricTile: View {
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Ring(fraction: readout.fraction(metric) ?? 0, ink: ink) {
+                Ring(fraction: readout.fraction(metric) ?? 0, ink: ringInk) {
                     VStack(spacing: 0) {
                         Text(center).font(.system(size: 12, weight: .semibold).monospacedDigit())
                         if metric == .battery, readout.latest.battery?.state == .charging {
@@ -263,8 +271,8 @@ private struct MetricTile: View {
         }
     }
 
-    /// Colour carries meaning only when something needs attention.
-    private var ink: Color {
+    /// Alert colours override the palette only when something needs attention.
+    private var ringInk: Color {
         switch metric {
         case .battery:
             if let b = readout.latest.battery, b.level <= 0.1, b.state == .discharging { return .red }
@@ -272,7 +280,7 @@ private struct MetricTile: View {
             if let s = readout.latest.storage, s.usedFraction >= 0.9 { return .orange }
         default: break
         }
-        return Ink.strong
+        return ink.strong
     }
 
     private func batteryStatus(_ b: BatteryReading) -> String {
@@ -306,20 +314,26 @@ private struct Ring<Label: View>: View {
 
 // MARK: - Shared pieces
 
-/// Three steps of the accent colour, used consistently: the strongest is
+/// Three steps of one palette colour, used consistently: the strongest is
 /// always the primary series and the legend dots match the marks. Over a
 /// dark menu, translucency darkens, so the lighter steps carry more alpha
 /// there to stay distinguishable.
-enum Ink {
-    static let strong = Color.accentColor
-    static let medium = tint(light: 0.62, dark: 0.72)
-    static let soft = tint(light: 0.36, dark: 0.5)
+struct Ink {
+    let strong: Color
+    let medium: Color
+    let soft: Color
 
-    private static func tint(light: CGFloat, dark: CGFloat) -> Color {
+    init(_ base: NSColor) {
+        strong = Color(nsColor: base)
+        medium = Self.tint(base, light: 0.62, dark: 0.72)
+        soft = Self.tint(base, light: 0.36, dark: 0.5)
+    }
+
+    private static func tint(_ base: NSColor, light: CGFloat, dark: CGFloat) -> Color {
         Color(
             nsColor: NSColor(name: nil) { appearance in
                 let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-                return NSColor.controlAccentColor.withAlphaComponent(isDark ? dark : light)
+                return base.withAlphaComponent(isDark ? dark : light)
             })
     }
 }
@@ -423,6 +437,7 @@ private struct Segments: View {
 private struct CoreClusters: View {
     let cores: [Double]
     let topology: CPUTopology
+    let ink: Color
     let width: CGFloat
 
     private let gap: CGFloat = 10
@@ -431,7 +446,7 @@ private struct CoreClusters: View {
     var body: some View {
         let clusters = topology.clusters
         if clusters.isEmpty || clusters.map(\.cores.count).reduce(0, +) != cores.count {
-            CoreBars(cores: cores)
+            CoreBars(cores: cores, ink: ink)
         } else {
             let gaps = gap * CGFloat(clusters.count - 1) + spacing * CGFloat(cores.count - clusters.count)
             let bar = (width - gaps) / CGFloat(cores.count)
@@ -439,7 +454,7 @@ private struct CoreClusters: View {
                 ForEach(clusters, id: \.kind) { cluster in
                     let load = cluster.cores.map { cores[$0] }
                     VStack(alignment: .leading, spacing: 4) {
-                        CoreBars(cores: load)
+                        CoreBars(cores: load, ink: ink)
                         HStack(spacing: 4) {
                             Text(cluster.kind.rawValue).foregroundStyle(.secondary)
                             Text(Format.percent(load.reduce(0, +) / Double(load.count))).monospacedDigit()
@@ -457,13 +472,14 @@ private struct CoreClusters: View {
 /// One thin bar per logical core, in kernel order.
 private struct CoreBars: View {
     let cores: [Double]
+    let ink: Color
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 2) {
             ForEach(cores.indices, id: \.self) { i in
                 ZStack(alignment: .bottom) {
                     Rectangle().fill(Color.primary.opacity(0.08))
-                    Rectangle().fill(Ink.strong)
+                    Rectangle().fill(ink)
                         .frame(height: 14 * CGFloat(min(max(cores[i], 0), 1)))
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))

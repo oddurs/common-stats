@@ -3,9 +3,11 @@ import AppKit
 /// The menu bar layout engine. Widths depend only on the layout, never on
 /// the values, so the status item never jitters as numbers change.
 ///
-/// Everything is drawn in black at varying opacity into a template image;
-/// AppKit then tints it like any system menu bar extra (light, dark,
-/// inactive display, increased contrast).
+/// By default everything is drawn in black at varying opacity into a
+/// template image, and AppKit tints it like any system menu bar extra
+/// (light, dark, inactive display, increased contrast). With colour on, the
+/// image is drawn in dynamic system colours instead, which resolve against
+/// the menu bar's appearance at draw time.
 public struct BarRenderer {
     public let layout: BarLayout
     public let height: CGFloat
@@ -21,11 +23,36 @@ public struct BarRenderer {
 
     // MARK: Type and geometry
 
-    enum Ink {
-        static let full: CGFloat = 1
+    /// Opacity steps for marks, applied to whatever colour a mark has.
+    enum Alpha {
         static let secondary: CGFloat = 0.5
         static let track: CGFloat = 0.11
     }
+
+    /// The colours one render uses. Template ink is black at fixed opacities,
+    /// which is all a template image keeps.
+    struct Ink {
+        let text: NSColor
+        let secondary: NSColor
+        let track: NSColor
+        let mark: (Metric) -> NSColor
+        let isTemplate: Bool
+
+        static var template: Ink {
+            Ink(
+                text: .black, secondary: .black.withAlphaComponent(Alpha.secondary),
+                track: .black.withAlphaComponent(Alpha.track), mark: { _ in .black }, isTemplate: true)
+        }
+
+        static func color(_ palette: Palette) -> Ink {
+            Ink(
+                text: .labelColor, secondary: .secondaryLabelColor,
+                track: .labelColor.withAlphaComponent(Alpha.track), mark: { palette.color(for: $0) },
+                isTemplate: false)
+        }
+    }
+
+    var ink: Ink { layout.colorInMenuBar ? .color(layout.palette) : .template }
 
     // NSFont is immutable; Swift just can't see that.
     nonisolated(unsafe) static let valueFont = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
@@ -72,7 +99,7 @@ public struct BarRenderer {
 
     func width(of part: Part, for item: BarItem) -> CGFloat {
         switch part {
-        case .caption: return Self.measure(item.metric.caption, Self.captionAttributes(Ink.full))
+        case .caption: return Self.measure(item.metric.caption, Self.captionAttributes())
         case .graph: return layout.density.graphWidth
         case .gauge: return Self.gaugeWidth
         case .value: return valueWidth(item.metric)
@@ -82,14 +109,14 @@ public struct BarRenderer {
     /// The widest string a metric can produce, so the cell never resizes.
     func valueWidth(_ metric: Metric) -> CGFloat {
         if metric.isRatePair {
-            let glyph = Self.pairGlyphs(metric).map { Self.measure($0, Self.pairAttributes(Ink.full)) }.max()!
+            let glyph = Self.pairGlyphs(metric).map { Self.measure($0, Self.pairAttributes()) }.max()!
             return ceil(glyph + Self.pairGlyphGap + Self.widest(Self.rateTemplates, Self.pairFont))
         }
         let templates = metric == .storage ? ["888 GB", "888 TB", "8\(Format.decimalSeparator())8 TB"] : ["100%"]
         let stacked = layout.showCaptions
         var w = Self.widest(templates, stacked ? Self.stackedValueFont : Self.valueFont)
         if metric == .battery { w += Self.boltWidth(stacked) }
-        if stacked { w = max(w, Self.measure(metric.caption, Self.captionAttributes(Ink.full))) }
+        if stacked { w = max(w, Self.measure(metric.caption, Self.captionAttributes())) }
         return ceil(w)
     }
 
@@ -117,132 +144,139 @@ public struct BarRenderer {
 
     // MARK: Drawing
 
-    /// A template image of the whole bar, or nil when nothing is visible.
+    /// An image of the whole bar, or nil when nothing is visible. A template
+    /// image unless the layout asks for colour.
     public func image(_ readout: Readout) -> NSImage? {
         guard let last = cells.last else { return nil }
         let size = CGSize(width: ceil(last.x + last.width), height: height)
+        let ink = self.ink
         let image = NSImage(size: size, flipped: true) { _ in
-            for cell in cells { self.draw(cell, readout) }
+            for cell in cells { self.draw(cell, readout, ink) }
             return true
         }
-        image.isTemplate = true
+        image.isTemplate = !layout.colorInMenuBar
         return image
     }
 
-    func draw(_ cell: Cell, _ readout: Readout) {
+    func draw(_ cell: Cell, _ readout: Readout, _ ink: Ink) {
         let metric = cell.item.metric
+        let mark = ink.mark(metric)
         for (part, x, w) in cell.parts {
             let chart = CGRect(x: x, y: (height - chartHeight) / 2, width: w, height: chartHeight)
             switch part {
             case .caption:
-                drawLine(metric.caption, Self.captionAttributes(Ink.secondary), x: x, width: w, align: .left)
+                drawLine(metric.caption, Self.captionAttributes(ink.secondary), x: x, width: w, align: .left)
             case .gauge:
-                drawGauge(readout.fraction(metric) ?? 0, in: chart)
+                drawGauge(readout.fraction(metric) ?? 0, mark: mark, ink: ink, in: chart)
             case .graph:
                 if metric.isRatePair {
-                    drawMirrored(readout.primary[metric], readout.secondary[metric], floor: metric.rateFloor, in: chart)
+                    drawMirrored(
+                        readout.primary[metric], readout.secondary[metric], floor: metric.rateFloor, mark: mark,
+                        ink: ink, in: chart)
                 } else {
-                    drawGraph(readout.primary[metric], readout.secondary[metric], in: chart)
+                    drawGraph(readout.primary[metric], readout.secondary[metric], mark: mark, ink: ink, in: chart)
                 }
             case .value:
                 if metric.isRatePair {
-                    drawPair(metric, readout.rates(metric), x: x, width: w)
+                    drawPair(metric, readout.rates(metric), ink: ink, x: x, width: w)
                 } else {
-                    drawValue(metric, readout, x: x, width: w)
+                    drawValue(metric, readout, ink: ink, x: x, width: w)
                 }
             }
         }
     }
 
-    private func drawValue(_ metric: Metric, _ readout: Readout, x: CGFloat, width: CGFloat) {
+    private func drawValue(_ metric: Metric, _ readout: Readout, ink: Ink, x: CGFloat, width: CGFloat) {
         let text = readout.valueText(metric)
         let bolt = metric == .battery && readout.latest.battery.map { $0.state != .discharging } == true
         if layout.showCaptions {
-            let caption = NSAttributedString(string: metric.caption, attributes: Self.captionAttributes(Ink.secondary))
-            let value = Self.number(text, Self.stackedValueFont)
+            let caption = NSAttributedString(string: metric.caption, attributes: Self.captionAttributes(ink.secondary))
+            let value = Self.number(text, Self.stackedValueFont, ink: ink)
             let (top, bottom) = twoLineBaselines(Self.captionFont, Self.stackedValueFont)
             draw(caption, baseline: top, x: x, width: width, align: .right)
             draw(value, baseline: bottom, x: x, width: width, align: .right)
-            if bolt { drawBolt(stacked: true, baseline: bottom, leftOf: x + width - value.size().width) }
+            if bolt { drawBolt(stacked: true, ink: ink, baseline: bottom, leftOf: x + width - value.size().width) }
         } else {
-            let value = Self.number(text, Self.valueFont)
+            let value = Self.number(text, Self.valueFont, ink: ink)
             let baseline = (height + Self.valueFont.capHeight) / 2
             draw(value, baseline: baseline, x: x, width: width, align: .right)
-            if bolt { drawBolt(stacked: false, baseline: baseline, leftOf: x + width - value.size().width) }
+            if bolt { drawBolt(stacked: false, ink: ink, baseline: baseline, leftOf: x + width - value.size().width) }
         }
     }
 
-    private func drawPair(_ metric: Metric, _ rates: RateReading?, x: CGFloat, width: CGFloat) {
+    private func drawPair(_ metric: Metric, _ rates: RateReading?, ink: Ink, x: CGFloat, width: CGFloat) {
         let glyphs = Self.pairGlyphs(metric)
         // Outbound on top, matching the mirrored graph.
         let values = [rates?.outbound, rates?.inbound].map { $0.map { Format.rate($0) } ?? Format.missing }
         let (top, bottom) = twoLineBaselines(Self.pairFont, Self.pairFont)
         for (i, baseline) in [top, bottom].enumerated() {
             draw(
-                NSAttributedString(string: glyphs[i], attributes: Self.pairAttributes(Ink.secondary)),
+                NSAttributedString(string: glyphs[i], attributes: Self.pairAttributes(ink.secondary)),
                 baseline: baseline, x: x, width: width, align: .left)
             draw(
-                Self.number(values[i], Self.pairFont),
+                Self.number(values[i], Self.pairFont, ink: ink),
                 baseline: baseline, x: x, width: width, align: .right)
         }
     }
 
-    private func drawGauge(_ fraction: Double, in rect: CGRect) {
+    private func drawGauge(_ fraction: Double, mark: NSColor, ink: Ink, in rect: CGRect) {
         let radius = rect.width / 2
-        NSColor.black.withAlphaComponent(Ink.track).setFill()
+        ink.track.setFill()
         NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
         let filled = rect.height * CGFloat(min(max(fraction, 0), 1))
         guard filled > 0 else { return }
         NSGraphicsContext.saveGraphicsState()
         NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).addClip()
-        NSColor.black.setFill()
+        mark.setFill()
         CGRect(x: rect.minX, y: rect.maxY - filled, width: rect.width, height: filled).fill()
         NSGraphicsContext.restoreGraphicsState()
     }
 
     /// Fractions 0...1; newest sample at the right edge, one sample per point.
-    private func drawGraph(_ primary: History?, _ secondary: History?, in rect: CGRect) {
-        drawTrack(rect) {
+    private func drawGraph(_ primary: History?, _ secondary: History?, mark: NSColor, ink: Ink, in rect: CGRect) {
+        drawTrack(rect, ink) {
             let n = Int(rect.width)
             if let primary {
                 let total = primary.suffix(n)
-                NSColor.black.withAlphaComponent(secondary == nil ? 0.85 : Ink.secondary).setFill()
+                mark.withAlphaComponent(secondary == nil ? 0.85 : Alpha.secondary).setFill()
                 Self.area(total, in: rect, scale: 1).fill()
             }
             if let secondary {
-                NSColor.black.setFill()
+                mark.setFill()
                 Self.area(secondary.suffix(n), in: rect, scale: 1).fill()
             }
         }
     }
 
     /// Outbound grows up from the midline, inbound down, on a shared scale.
-    private func drawMirrored(_ inbound: History?, _ outbound: History?, floor: Double, in rect: CGRect) {
-        drawTrack(rect) {
+    private func drawMirrored(
+        _ inbound: History?, _ outbound: History?, floor: Double, mark: NSColor, ink: Ink, in rect: CGRect
+    ) {
+        drawTrack(rect, ink) {
             let n = Int(rect.width)
             let peak = max(inbound?.max(last: n) ?? 0, outbound?.max(last: n) ?? 0, floor)
             let half = rect.height / 2
             // The midline says "two-way" even when the link is idle.
-            NSColor.black.withAlphaComponent(Ink.track * 2).setFill()
+            ink.text.withAlphaComponent(Alpha.track * 2).setFill()
             CGRect(x: rect.minX, y: rect.midY - 0.25, width: rect.width, height: 0.5).fill()
             var top = rect
             top.size.height = half
             var bottom = top
             bottom.origin.y += half
             if let outbound {
-                NSColor.black.withAlphaComponent(Ink.secondary + 0.15).setFill()
+                mark.withAlphaComponent(Alpha.secondary + 0.15).setFill()
                 Self.area(outbound.suffix(n), in: top, scale: peak).fill()
             }
             if let inbound {
-                NSColor.black.setFill()
+                mark.setFill()
                 Self.area(inbound.suffix(n), in: bottom, scale: peak, fromTop: true).fill()
             }
         }
     }
 
-    private func drawTrack(_ rect: CGRect, _ body: () -> Void) {
+    private func drawTrack(_ rect: CGRect, _ ink: Ink, _ body: () -> Void) {
         let path = NSBezierPath(roundedRect: rect, xRadius: 3, yRadius: 3)
-        NSColor.black.withAlphaComponent(Ink.track).setFill()
+        ink.track.setFill()
         path.fill()
         NSGraphicsContext.saveGraphicsState()
         path.addClip()
@@ -270,7 +304,7 @@ public struct BarRenderer {
         return path
     }
 
-    private func drawBolt(stacked: Bool, baseline: CGFloat, leftOf valueX: CGFloat) {
+    private func drawBolt(stacked: Bool, ink: Ink, baseline: CGFloat, leftOf valueX: CGFloat) {
         let size = stacked ? 7.0 : 8.5
         let config = NSImage.SymbolConfiguration(pointSize: size, weight: .bold)
         guard
@@ -281,7 +315,16 @@ public struct BarRenderer {
         let rect = CGRect(
             x: valueX - bolt.size.width - 1, y: baseline - capHeight / 2 - bolt.size.height / 2,
             width: bolt.size.width, height: bolt.size.height)
-        bolt.draw(in: rect)
+        if ink.isTemplate {
+            bolt.draw(in: rect)
+        } else {
+            // Symbol images draw black; tint it to the label colour for a colour bar.
+            NSGraphicsContext.saveGraphicsState()
+            bolt.draw(in: rect)
+            ink.text.set()
+            rect.fill(using: .sourceAtop)
+            NSGraphicsContext.restoreGraphicsState()
+        }
     }
 
     static func boltWidth(_ stacked: Bool) -> CGFloat { stacked ? 8 : 10 }
@@ -315,26 +358,26 @@ public struct BarRenderer {
 
     /// A value whose unit ("%", " MB/s") is set in secondary ink, so the
     /// number carries the reading. Widths are unchanged: ink isn't geometry.
-    static func number(_ text: String, _ font: NSFont) -> NSAttributedString {
-        let result = NSMutableAttributedString(string: text, attributes: valueAttributes(font))
+    static func number(_ text: String, _ font: NSFont, ink: Ink = .template) -> NSAttributedString {
+        let result = NSMutableAttributedString(string: text, attributes: valueAttributes(font, ink.text))
         let digits = text.prefix { $0.isNumber || $0 == "." || $0 == "," }.count
         if digits > 0, digits < text.count {
             let unit = NSRange(text.index(text.startIndex, offsetBy: digits)..., in: text)
-            result.addAttribute(.foregroundColor, value: NSColor.black.withAlphaComponent(Ink.secondary), range: unit)
+            result.addAttribute(.foregroundColor, value: ink.secondary, range: unit)
         }
         return result
     }
 
-    static func valueAttributes(_ font: NSFont) -> [NSAttributedString.Key: Any] {
-        [.font: font, .foregroundColor: NSColor.black]
+    static func valueAttributes(_ font: NSFont, _ color: NSColor = .black) -> [NSAttributedString.Key: Any] {
+        [.font: font, .foregroundColor: color]
     }
 
-    static func pairAttributes(_ ink: CGFloat) -> [NSAttributedString.Key: Any] {
-        [.font: pairFont, .foregroundColor: NSColor.black.withAlphaComponent(ink)]
+    static func pairAttributes(_ color: NSColor = .black) -> [NSAttributedString.Key: Any] {
+        [.font: pairFont, .foregroundColor: color]
     }
 
-    static func captionAttributes(_ ink: CGFloat) -> [NSAttributedString.Key: Any] {
-        [.font: captionFont, .foregroundColor: NSColor.black.withAlphaComponent(ink), .kern: 0.4]
+    static func captionAttributes(_ color: NSColor = .black) -> [NSAttributedString.Key: Any] {
+        [.font: captionFont, .foregroundColor: color, .kern: 0.4]
     }
 
     static func pairGlyphs(_ metric: Metric) -> [String] {
