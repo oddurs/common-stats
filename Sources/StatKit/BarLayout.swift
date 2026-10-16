@@ -88,6 +88,28 @@ public enum Style: String, Codable, CaseIterable, Sendable {
     public var showsGauge: Bool { self == .gauge || self == .gaugeValue }
 }
 
+/// A trailing time average for the menu bar. The menu always shows exact readings.
+public enum Smoothing: String, Codable, CaseIterable, Sendable {
+    case off, short, medium, long
+
+    public var seconds: TimeInterval? {
+        switch self {
+        case .off: nil
+        case .short: 3
+        case .medium: 10
+        case .long: 30
+        }
+    }
+
+    public var name: String { seconds.map { "\(Int($0)) seconds" } ?? "Off" }
+
+    /// How many samples the average spans at a given update interval; 1 means raw.
+    public func window(interval: TimeInterval) -> Int {
+        guard let seconds, interval > 0 else { return 1 }
+        return Swift.max(1, Int((seconds / interval).rounded()))
+    }
+}
+
 public struct BarItem: Codable, Hashable, Identifiable, Sendable {
     public var metric: Metric
     public var style: Style
@@ -132,6 +154,7 @@ public struct BarLayout: Codable, Equatable, Sendable {
     /// Colour graphs and gauges in the menu bar too. Off, the bar is a
     /// monochrome template image like the system's own menu bar icons.
     public var colorInMenuBar: Bool
+    public var smoothing: Smoothing
 
     public static let intervals: [TimeInterval] = [0.5, 1, 2, 3, 5]
 
@@ -141,13 +164,14 @@ public struct BarLayout: Codable, Equatable, Sendable {
             BarItem(.gpu, .hidden), BarItem(.disk, .hidden), BarItem(.storage, .hidden),
             BarItem(.battery, .hidden),
         ],
-        showCaptions: true, density: .regular, interval: 1, palette: .accent, colorInMenuBar: false)
+        showCaptions: true, density: .regular, interval: 1, palette: .accent, colorInMenuBar: false,
+        smoothing: .off)
 
     public var visible: [BarItem] { items.filter { $0.style != .hidden } }
 
     public init(
         items: [BarItem], showCaptions: Bool, density: Density, interval: TimeInterval,
-        palette: Palette = .accent, colorInMenuBar: Bool = false
+        palette: Palette = .accent, colorInMenuBar: Bool = false, smoothing: Smoothing = .off
     ) {
         self.items = items
         self.showCaptions = showCaptions
@@ -155,6 +179,7 @@ public struct BarLayout: Codable, Equatable, Sendable {
         self.interval = interval
         self.palette = palette
         self.colorInMenuBar = colorInMenuBar
+        self.smoothing = smoothing
         normalize()
     }
 
@@ -168,6 +193,7 @@ public struct BarLayout: Codable, Equatable, Sendable {
         // An unknown palette from a newer version falls back rather than discarding the whole layout.
         palette = (try? c.decodeIfPresent(Palette.self, forKey: .palette)) ?? d.palette
         colorInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .colorInMenuBar) ?? d.colorInMenuBar
+        smoothing = (try? c.decodeIfPresent(Smoothing.self, forKey: .smoothing)) ?? d.smoothing
         normalize()
     }
 

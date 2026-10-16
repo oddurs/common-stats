@@ -54,6 +54,9 @@ public struct BarRenderer {
 
     var ink: Ink { layout.colorInMenuBar ? .color(layout.palette) : .template }
 
+    /// Samples each displayed value averages over; 1 shows raw readings.
+    var window: Int { layout.smoothing.window(interval: layout.interval) }
+
     // NSFont is immutable; Swift just can't see that.
     nonisolated(unsafe) static let valueFont = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
     nonisolated(unsafe) static let stackedValueFont = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium)
@@ -167,7 +170,7 @@ public struct BarRenderer {
             case .caption:
                 drawLine(metric.caption, Self.captionAttributes(ink.secondary), x: x, width: w, align: .left)
             case .gauge:
-                drawGauge(readout.fraction(metric) ?? 0, mark: mark, ink: ink, in: chart)
+                drawGauge(readout.fraction(metric, window: window) ?? 0, mark: mark, ink: ink, in: chart)
             case .graph:
                 if metric.isRatePair {
                     drawMirrored(
@@ -178,7 +181,7 @@ public struct BarRenderer {
                 }
             case .value:
                 if metric.isRatePair {
-                    drawPair(metric, readout.rates(metric), ink: ink, x: x, width: w)
+                    drawPair(metric, readout.rates(metric, window: window), ink: ink, x: x, width: w)
                 } else {
                     drawValue(metric, readout, ink: ink, x: x, width: w)
                 }
@@ -187,7 +190,7 @@ public struct BarRenderer {
     }
 
     private func drawValue(_ metric: Metric, _ readout: Readout, ink: Ink, x: CGFloat, width: CGFloat) {
-        let text = readout.valueText(metric)
+        let text = readout.valueText(metric, window: window)
         let bolt = metric == .battery && readout.latest.battery.map { $0.state != .discharging } == true
         if layout.showCaptions {
             let caption = NSAttributedString(string: metric.caption, attributes: Self.captionAttributes(ink.secondary))
@@ -237,13 +240,13 @@ public struct BarRenderer {
         drawTrack(rect, ink) {
             let n = Int(rect.width)
             if let primary {
-                let total = primary.suffix(n)
+                let total = primary.trailingMeans(last: n, window: window)
                 mark.withAlphaComponent(secondary == nil ? 0.85 : Alpha.secondary).setFill()
                 Self.area(total, in: rect, scale: 1).fill()
             }
             if let secondary {
                 mark.setFill()
-                Self.area(secondary.suffix(n), in: rect, scale: 1).fill()
+                Self.area(secondary.trailingMeans(last: n, window: window), in: rect, scale: 1).fill()
             }
         }
     }
@@ -254,7 +257,9 @@ public struct BarRenderer {
     ) {
         drawTrack(rect, ink) {
             let n = Int(rect.width)
-            let peak = max(inbound?.max(last: n) ?? 0, outbound?.max(last: n) ?? 0, floor)
+            let down = inbound?.trailingMeans(last: n, window: window) ?? []
+            let up = outbound?.trailingMeans(last: n, window: window) ?? []
+            let peak = max(down.max() ?? 0, up.max() ?? 0, floor)
             let half = rect.height / 2
             // The midline says "two-way" even when the link is idle.
             ink.text.withAlphaComponent(Alpha.track * 2).setFill()
@@ -263,14 +268,10 @@ public struct BarRenderer {
             top.size.height = half
             var bottom = top
             bottom.origin.y += half
-            if let outbound {
-                mark.withAlphaComponent(Alpha.secondary + 0.15).setFill()
-                Self.area(outbound.suffix(n), in: top, scale: peak).fill()
-            }
-            if let inbound {
-                mark.setFill()
-                Self.area(inbound.suffix(n), in: bottom, scale: peak, fromTop: true).fill()
-            }
+            mark.withAlphaComponent(Alpha.secondary + 0.15).setFill()
+            Self.area(up, in: top, scale: peak).fill()
+            mark.setFill()
+            Self.area(down, in: bottom, scale: peak, fromTop: true).fill()
         }
     }
 
@@ -401,11 +402,11 @@ public struct BarRenderer {
     public func accessibilityText(_ readout: Readout) -> String {
         layout.visible.map { item -> String in
             let m = item.metric
-            if let r = readout.rates(m) {
+            if let r = readout.rates(m, window: window) {
                 let (outName, inName) = m == .network ? ("up", "down") : ("write", "read")
                 return "\(m.name) \(inName) \(Format.rate(r.inbound)), \(outName) \(Format.rate(r.outbound))"
             }
-            return "\(m.name) \(readout.valueText(m))"
+            return "\(m.name) \(readout.valueText(m, window: window))"
         }.joined(separator: ", ")
     }
 }
