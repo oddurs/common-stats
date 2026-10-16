@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-16
+
+### Changed
+
+- New app icon, in the blue glass style shared by Common Stats, Common Keys, and Common Bar.
+
 ## [0.2.0] - 2026-10-16
 
 ### Changed
@@ -25,6 +31,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Project website at https://oddurs.github.io/statbar/.
 - Lower power use: drawing pauses while the item is hidden, sampling halves in Low Power Mode, and sampling stops while the displays sleep.
 
-[Unreleased]: https://github.com/oddurs/common-stats/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/oddurs/common-stats/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/oddurs/common-stats/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/oddurs/common-stats/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/oddurs/common-stats/releases/tag/v0.1.0
