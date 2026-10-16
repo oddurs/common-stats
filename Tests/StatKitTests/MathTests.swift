@@ -207,3 +207,72 @@ struct CPUTopologyTests {
         #expect(counts[.efficiency] == Int(e))
     }
 }
+
+struct SmoothingTests {
+    func history(_ values: [Double], capacity: Int = 10) -> History {
+        var h = History(capacity: capacity)
+        values.forEach { h.append($0) }
+        return h
+    }
+
+    @Test func meanOfTheNewestValues() {
+        let h = history([1, 2, 3, 4])
+        #expect(h.mean(last: 2) == 3.5)
+        #expect(h.mean(last: 99) == 2.5)
+        #expect(History(capacity: 3).mean(last: 2) == nil)
+    }
+
+    @Test func trailingMeansAverageWhatHistoryExists() {
+        let h = history([0, 10, 20, 30, 40])
+        #expect(h.trailingMeans(last: 5, window: 2) == [0, 5, 15, 25, 35])
+        #expect(h.trailingMeans(last: 2, window: 3) == [20, 30])  // reaches back before the output range
+        #expect(h.trailingMeans(last: 3, window: 1) == [20, 30, 40])
+    }
+
+    @Test func trailingMeansAcrossTheRingBufferSeam() {
+        let h = history([5, 5, 0, 10, 20], capacity: 3)  // holds 0, 10, 20
+        #expect(h.trailingMeans(last: 3, window: 2) == [0, 5, 15])
+    }
+
+    @Test func windowFollowsTheUpdateInterval() {
+        #expect(Smoothing.off.window(interval: 1) == 1)
+        #expect(Smoothing.medium.window(interval: 1) == 10)
+        #expect(Smoothing.medium.window(interval: 2) == 5)
+        #expect(Smoothing.short.window(interval: 5) == 1)  // shorter than one sample is raw
+    }
+
+    @Test func readoutAveragesOnlyWhenAsked() {
+        var r = Readout()
+        for v in [0.1, 0.3, 0.5] {
+            var s = Snapshot()
+            s.gpu = v
+            s.network = RateReading(inbound: v * 1000, outbound: v * 100)
+            r.ingest(s)
+        }
+        #expect(r.fraction(.gpu, window: 1) == 0.5)
+        #expect(abs((r.fraction(.gpu, window: 3) ?? 0) - 0.3) < 1e-12)
+        #expect(r.valueText(.gpu, window: 3) == "30%")
+        let rates = r.rates(.network, window: 2)
+        #expect(abs((rates?.inbound ?? 0) - 400) < 1e-9)
+        #expect(abs((rates?.outbound ?? 0) - 40) < 1e-9)
+    }
+
+    @Test func layoutsWithoutSmoothingDecodeAsOff() throws {
+        let l = try JSONDecoder().decode(BarLayout.self, from: Data(#"{"smoothing":"forever"}"#.utf8))
+        #expect(l.smoothing == .off)
+    }
+
+    @Test func barShowsTheAverageWhenSmoothing() {
+        var r = Readout()
+        for v in [0.2, 0.4] {
+            var s = Snapshot()
+            s.cpu = CPUReading(user: v, system: 0, cores: [v], loadAverage: (0, 0, 0))
+            r.ingest(s)
+        }
+        var layout = BarLayout.standard
+        layout.smoothing = .short
+        #expect(BarRenderer(layout: layout, height: 22).accessibilityText(r).contains("CPU 30%"))
+        layout.smoothing = .off
+        #expect(BarRenderer(layout: layout, height: 22).accessibilityText(r).contains("CPU 40%"))
+    }
+}

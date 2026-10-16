@@ -45,6 +45,29 @@ public struct Readout: Sendable {
         }
     }
 
+    /// `fraction` averaged over the newest `window` samples. Metrics without
+    /// a history (storage, battery) are always current.
+    public func fraction(_ metric: Metric, window: Int) -> Double? {
+        guard window > 1, metric == .cpu || metric == .gpu || metric == .memory,
+            let mean = primary[metric]?.mean(last: window)
+        else { return fraction(metric) }
+        return mean
+    }
+
+    /// `rates` averaged over the newest `window` samples.
+    public func rates(_ metric: Metric, window: Int) -> RateReading? {
+        guard window > 1, metric.isRatePair, let inbound = primary[metric]?.mean(last: window),
+            let outbound = secondary[metric]?.mean(last: window)
+        else { return rates(metric) }
+        return RateReading(inbound: inbound, outbound: outbound, source: rates(metric)?.source)
+    }
+
+    /// `valueText` from values averaged over the newest `window` samples.
+    public func valueText(_ metric: Metric, window: Int) -> String {
+        guard window > 1, metric != .storage else { return valueText(metric) }
+        return fraction(metric, window: window).map(Format.percent) ?? Format.missing
+    }
+
     /// Menu bar text for a single-value metric.
     public func valueText(_ metric: Metric) -> String {
         switch metric {

@@ -76,12 +76,18 @@ struct SettingsView: View {
                         Text(s == 1 ? "1 second" : "\(s.formatted()) seconds")
                     }
                 }
+                Picker("Average over", selection: $model.layout.smoothing) {
+                    ForEach(Smoothing.allCases, id: \.self) { Text($0.name) }
+                }
             } header: {
                 Text("General")
             } footer: {
-                if let loginError {
-                    Text(loginError).font(.footnote).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Averaging steadies the menu bar’s numbers and graphs. The menu always shows exact readings.")
+                    if let loginError { Text(loginError) }
                 }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             }
 
             CommonToolsSection()
