@@ -2,13 +2,14 @@ import AppKit
 import StatKit
 import SwiftUI
 
-/// `StatBar --snapshot out.png [seconds]` samples for a few seconds and writes
-/// the bar at 2x on light and dark menu bars to `out.png`, and every menu
-/// section in light and dark to `out-menu.png`. Used for README images and
-/// for design review without screen-recording permission.
+/// `StatBar --snapshot out.png [seconds] [palette]` samples for a few seconds
+/// and writes the bar at 2x on light and dark menu bars to `out.png` (the
+/// last row in colour), and every menu section in light and dark, in the
+/// given palette, to `out-menu.png`. Used for README images and for design
+/// review without screen-recording permission.
 @MainActor
 enum SnapshotCommand {
-    static func run(path: String, seconds: Int) {
+    static func run(path: String, seconds: Int, palette: Palette) {
         let monitor = Monitor { _ in }
         var readout = Readout()
         for _ in 0..<seconds {
@@ -17,17 +18,17 @@ enum SnapshotCommand {
         }
         readout.ingest(monitor.sampleNow())
         writeBar(readout, to: path)
-        writeMenu(readout, to: (path as NSString).deletingPathExtension + "-menu.png")
+        writeMenu(readout, palette: palette, to: (path as NSString).deletingPathExtension + "-menu.png")
     }
 
-    private static func writeMenu(_ readout: Readout, to path: String) {
+    private static func writeMenu(_ readout: Readout, palette: Palette, to path: String) {
         let interval: TimeInterval = 1
         func menu(_ scheme: ColorScheme) -> some View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(DropdownPanel.panels(for: Metric.allCases), id: \.self) { panel in
                     // The network card shows the pointer resting on its graph, to review hover.
                     PanelView(
-                        readout: readout, panel: panel, interval: interval,
+                        readout: readout, panel: panel, interval: interval, palette: palette,
                         previewHover: panel == .card(.network) ? 20 : nil)
                 }
             }
@@ -57,7 +58,7 @@ enum SnapshotCommand {
                 items: [
                     BarItem(.cpu, .graph), BarItem(.gpu, .graph), BarItem(.memory, .value), BarItem(.network, .graph),
                 ],
-                showCaptions: false, density: .compact, interval: 1),
+                showCaptions: false, density: .compact, interval: 1, palette: .metric, colorInMenuBar: true),
         ]
         let height: CGFloat = 24
         let images = layouts.compactMap { BarRenderer(layout: $0, height: height).image(readout) }
@@ -80,9 +81,16 @@ enum SnapshotCommand {
             (dark ? NSColor(white: 0.16, alpha: 1) : NSColor(white: 0.93, alpha: 1)).setFill()
             band.fill()
             for (i, image) in images.enumerated() {
-                let tinted = tint(image, dark ? .white : .black)
                 let y = band.maxY - rowHeight * CGFloat(i + 1) + 2
-                tinted.draw(in: CGRect(x: 12, y: y, width: image.size.width, height: image.size.height))
+                let rect = CGRect(x: 12, y: y, width: image.size.width, height: image.size.height)
+                if image.isTemplate {
+                    tint(image, dark ? .white : .black).draw(in: rect)
+                } else {
+                    // A colour bar resolves its dynamic colours against the appearance it's drawn in.
+                    NSAppearance(named: dark ? .darkAqua : .aqua)?.performAsCurrentDrawingAppearance {
+                        image.draw(in: rect)
+                    }
+                }
             }
         }
         NSGraphicsContext.restoreGraphicsState()

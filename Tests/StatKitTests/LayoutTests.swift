@@ -139,3 +139,62 @@ struct ValueTypographyTests {
         #expect(alpha(s, at: 0) == 1)
     }
 }
+
+struct ReorderAndColorTests {
+    func order(_ l: BarLayout) -> [Metric] { l.items.map(\.metric) }
+
+    @Test func movingDownLandsAfterTheTarget() {
+        var l = BarLayout.standard  // cpu, memory, network, gpu, disk, storage, battery
+        l.move(.cpu, onto: .network)
+        #expect(order(l).prefix(3) == [.memory, .network, .cpu])
+    }
+
+    @Test func movingUpLandsBeforeTheTarget() {
+        var l = BarLayout.standard
+        l.move(.battery, onto: .memory)
+        #expect(order(l).prefix(3) == [.cpu, .battery, .memory])
+    }
+
+    @Test func droppingOnItselfChangesNothing() {
+        var l = BarLayout.standard
+        l.move(.gpu, onto: .gpu)
+        #expect(l == .standard)
+    }
+
+    @Test func olderLayoutsGetDefaultColors() throws {
+        let json = #"{"items":[{"metric":"cpu","style":"value"}],"showCaptions":true}"#
+        let l = try JSONDecoder().decode(BarLayout.self, from: Data(json.utf8))
+        #expect(l.palette == .accent)
+        #expect(l.colorInMenuBar == false)
+    }
+
+    @Test func unknownPaletteFromANewerVersionFallsBack() throws {
+        let json = #"{"items":[{"metric":"cpu","style":"value"}],"palette":"ultraviolet","colorInMenuBar":true}"#
+        let l = try JSONDecoder().decode(BarLayout.self, from: Data(json.utf8))
+        #expect(l.palette == .accent)
+        #expect(l.colorInMenuBar == true)
+    }
+
+    @Test func colorRoundTrips() throws {
+        var l = BarLayout.standard
+        l.palette = .metric
+        l.colorInMenuBar = true
+        #expect(try JSONDecoder().decode(BarLayout.self, from: JSONEncoder().encode(l)) == l)
+    }
+
+    @Test func perMetricPaletteGivesEachMetricItsOwnColor() {
+        let colors = Metric.allCases.map { Palette.metric.color(for: $0) }
+        #expect(Set(colors).count == Metric.allCases.count)
+        #expect(Set(Metric.allCases.map { Palette.green.color(for: $0) }).count == 1)
+    }
+
+    @Test func colorBarIsNotATemplateImageAndKeepsItsWidth() throws {
+        var l = BarLayout.standard
+        let mono = try #require(BarRenderer(layout: l, height: 22).image(Readout()))
+        l.colorInMenuBar = true
+        let color = try #require(BarRenderer(layout: l, height: 22).image(Readout()))
+        #expect(mono.isTemplate)
+        #expect(!color.isTemplate)
+        #expect(mono.size == color.size)
+    }
+}
