@@ -8,9 +8,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - Color settings: graphs, gauges, and legends can follow the system accent color, use a color per metric, or use one of eight system colors. An optional "Color in menu bar" switch carries the color into the menu bar; it is off by default, which keeps the bar monochrome like the system's own icons.
 
-### Fixed
+### Changed
 
-- Drag to reorder in Settings now works. Each item has a drag handle, and a line shows where the item will land. Move Up and Move Down remain in the context menu and as VoiceOver actions.
+- Settings edits the menu bar in place. The preview is the editor: drag items to reorder them, drag one out to the tray below to remove it, drag one in from the tray (or click it) to add it, and click an item to choose how it looks. The item list is gone. VoiceOver users get Move Left, Move Right, and Remove actions on each item.
 
 ## [0.3.0] - 2026-10-16
 
