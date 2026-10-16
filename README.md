@@ -11,8 +11,6 @@ Common Stats is built to feel like part of macOS:
 
 - **The menu bar draws it.** The bar is a template image, so macOS tints it for light and dark menu bars, dims it on inactive displays, and adjusts it for Increase Contrast, like the clock or Wi‑Fi.
 - **The dropdown is a real menu.** It opens, tracks, highlights, and dismisses like every other menu bar extra, with ⌘, and ⌘Q. Charts use your accent colour, and each chart has a legend.
-
-![The dropdown in light and dark](docs/bar-menu.png)
 - **Settings looks like System Settings.** Each metric gets a style (Value, Graph, Gauge, or Don't Show). Drag to reorder, or use Move Up and Move Down from the context menu or VoiceOver actions.
 - **VoiceOver reads it:** "CPU 21%, Memory 82%, Network down 6.1 KB/s, up 1.0 KB/s".
 - **Numbers follow your region:** "4,0 MB/s" in Germany, "4.0 MB/s" in the US.
@@ -32,18 +30,17 @@ Requires macOS 14 or later.
 
 3. Turn on **Open at login** in Settings.
 
+## Usage
+
+Click the item to open the dropdown. It shows cards and gauge tiles for the metrics in the bar, with history graphs; hover a graph to read back a past value. **Open Activity Monitor**, **Settings…** (⌘,), and **Quit** (⌘Q) are at the bottom.
+
+![The dropdown in light and dark](docs/bar-menu.png)
+
+In Settings, choose a style for each metric (Value, Graph, Gauge, or Don't Show), drag to reorder, and set labels, density, update interval, and **Open at login**.
+
 If the item lands behind the camera housing or a menu bar manager on first launch, Common Stats opens Settings to explain what happened. Settings keeps showing that notice while the item is hidden. Open Common Stats again from Finder or Spotlight at any time to get Settings.
 
-### Build from source
-
-The Command Line Tools are enough; Xcode is not required.
-
-```sh
-scripts/task build                 # universal build → build/Common Stats.app
-mv "build/Common Stats.app" /Applications/
-```
-
-## Accuracy
+### Accuracy
 
 Each figure comes from the same kernel source Apple's own tools use, and the tests compare Common Stats' figures against those tools.
 
@@ -59,12 +56,12 @@ Each figure comes from the same kernel source Apple's own tools use, and the tes
 
 Rates divide by the time that actually passed (a monotonic clock that keeps counting through sleep), not by the nominal interval. A gap longer than 10 seconds, such as after sleep, restarts the baseline, so a burst isn't averaged over time nobody saw. A value Common Stats can't read shows as a dash, never as a made-up zero.
 
-### Not included, and why
+#### Not included, and why
 
 - **Temperatures and fans.** Apple Silicon has no public API for them. The private sensor interfaces change between releases, and a figure that is silently wrong is worse than none.
 - **Top processes.** Without root, macOS hides usage for about a fifth of processes, including WindowServer and kernel_task, which are often the busiest. A list without them would be misleading. Use **Open Activity Monitor** in the menu.
 
-## Performance
+### Performance
 
 On an M4 Pro:
 
@@ -75,6 +72,15 @@ On an M4 Pro:
 - The timer has leeway, so macOS can batch Common Stats' wakeups with other work.
 
 The test suite fails if sampling or drawing gets about 10× slower. A leak test runs an hour's worth of samples (3,600) and fails if memory grows.
+
+## Build from source
+
+The Command Line Tools are enough; Xcode is not required.
+
+```sh
+scripts/task build                 # universal build → build/Common Stats.app
+mv "build/Common Stats.app" /Applications/
+```
 
 ## Development
 
