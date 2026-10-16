@@ -14,4 +14,4 @@
 
 - [ ] `scripts/task check` passes locally
 - [ ] Bug fixes include the test that would have caught them
-- [ ] UI changes include before/after snapshots (`StatBar --snapshot`)
+- [ ] UI changes include before/after snapshots (`.build/debug/StatBar --snapshot`)

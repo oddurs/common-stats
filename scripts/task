@@ -46,7 +46,8 @@ build)
         swift build -c release --triple "$arch-apple-macosx14.0"
         bins="$bins $(swift build -c release --triple "$arch-apple-macosx14.0" --show-bin-path)/StatBar"
     done
-    app="build/StatBar.app"
+    # The bundle carries the product name; the executable keeps the target's name.
+    app="build/Common Stats.app"
     echo "==> assembling $app"
     rm -rf "$app"
     mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"

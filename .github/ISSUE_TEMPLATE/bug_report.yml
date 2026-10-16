@@ -6,7 +6,7 @@ body:
     id: what
     attributes:
       label: What happened
-      description: Include what StatBar showed and what you expected. For a wrong value, say what Activity Monitor or a command-line tool shows for the same thing.
+      description: Include what Common Stats showed and what you expected. For a wrong value, say what Activity Monitor or a command-line tool shows for the same thing.
     validations:
       required: true
   - type: textarea
@@ -18,7 +18,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: StatBar version
+      label: Common Stats version
       placeholder: "0.1.0"
     validations:
       required: true

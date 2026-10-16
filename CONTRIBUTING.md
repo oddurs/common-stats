@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping. StatBar stays small on purpose, so open an issue before starting anything large.
+Thanks for helping. Common Stats stays small on purpose, so open an issue before starting anything large.
 
 ## Setup
 

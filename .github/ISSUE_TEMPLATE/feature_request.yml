@@ -6,11 +6,11 @@ body:
     id: problem
     attributes:
       label: Problem
-      description: What are you trying to see or do that StatBar doesn't support?
+      description: What are you trying to see or do that Common Stats doesn't support?
     validations:
       required: true
   - type: textarea
     id: idea
     attributes:
       label: Suggested approach
-      description: For a new metric, say where the data comes from if you know. StatBar only uses public, unprivileged sources.
+      description: For a new metric, say where the data comes from if you know. Common Stats only uses public, unprivileged sources.

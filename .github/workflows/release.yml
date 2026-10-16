@@ -18,11 +18,13 @@ jobs:
       - name: Package
         run: |
           # ditto keeps the bundle's signature and extended attributes intact.
-          ditto -c -k --keepParent build/StatBar.app "StatBar-${GITHUB_REF_NAME}.zip"
-          shasum -a 256 "StatBar-${GITHUB_REF_NAME}.zip" > "StatBar-${GITHUB_REF_NAME}.zip.sha256"
+          # The asset name carries no version, so releases/latest/download/CommonStats.zip
+          # always points at the newest build.
+          ditto -c -k --keepParent "build/Common Stats.app" CommonStats.zip
+          shasum -a 256 CommonStats.zip > CommonStats.zip.sha256
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "StatBar ${GITHUB_REF_NAME#v}" \
-            "StatBar-${GITHUB_REF_NAME}.zip" "StatBar-${GITHUB_REF_NAME}.zip.sha256"
+          gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "Common Stats ${GITHUB_REF_NAME#v}" \
+            CommonStats.zip CommonStats.zip.sha256
