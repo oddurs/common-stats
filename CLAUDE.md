@@ -1,6 +1,6 @@
 # Working in this repository
 
-StatBar is a native macOS menu bar system monitor written in Swift (AppKit plus SwiftUI) with no package dependencies.
+Common Stats is a native macOS menu bar system monitor written in Swift (AppKit plus SwiftUI) with no package dependencies.
 
 ## The seam
 
@@ -8,9 +8,10 @@ Do all automation through `scripts/task`. CI and the git hooks call nothing else
 
 ```sh
 scripts/task fmt       # format in place
-scripts/task lint      # swift-format lint --strict (format drift included)
+scripts/task fmt:check # swift format lint --strict, format only
+scripts/task lint      # fmt:check, then a debug build with warnings as errors
 scripts/task test      # unit, accuracy, and performance tests
-scripts/task build     # universal build/StatBar.app
+scripts/task build     # universal build/Common Stats.app
 scripts/task check     # lint + test + build
 ```
 

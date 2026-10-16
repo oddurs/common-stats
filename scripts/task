@@ -27,10 +27,15 @@ fmt)
     # shellcheck disable=SC2086
     swift format --in-place --recursive $sources
     ;;
-fmt:check | lint)
-    echo "==> checking format and lint"
+fmt:check)
+    echo "==> checking format"
     # shellcheck disable=SC2086
     swift format lint --strict --recursive $sources
+    ;;
+lint)
+    "$0" fmt:check
+    echo "==> building with warnings as errors"
+    swift build -Xswiftc -warnings-as-errors
     ;;
 test)
     echo "==> running tests"
@@ -46,7 +51,8 @@ build)
         swift build -c release --triple "$arch-apple-macosx14.0"
         bins="$bins $(swift build -c release --triple "$arch-apple-macosx14.0" --show-bin-path)/StatBar"
     done
-    app="build/StatBar.app"
+    # The bundle carries the product name; the executable keeps the target's name.
+    app="build/Common Stats.app"
     echo "==> assembling $app"
     rm -rf "$app"
     mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"

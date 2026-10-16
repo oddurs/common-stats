@@ -63,7 +63,7 @@ final class AppModel {
             return try JSONDecoder().decode(BarLayout.self, from: data)
         } catch {
             // Unreadable settings are replaced, not fatal; the user sees the defaults and can reconfigure.
-            NSLog("StatBar: discarding unreadable layout: \(error)")
+            NSLog("Common Stats: discarding unreadable layout: \(error)")
             return .standard
         }
     }
@@ -72,7 +72,7 @@ final class AppModel {
         do {
             defaults.set(try JSONEncoder().encode(layout), forKey: Self.key)
         } catch {
-            NSLog("StatBar: could not save layout: \(error)")
+            NSLog("Common Stats: could not save layout: \(error)")
         }
     }
 }

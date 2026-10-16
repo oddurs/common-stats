@@ -13,7 +13,7 @@ final class SettingsWindowController {
             let host = NSHostingController(rootView: SettingsView(model: model))
             host.sizingOptions = [.preferredContentSize]
             let window = NSWindow(contentViewController: host)
-            window.title = "StatBar Settings"
+            window.title = "Common Stats Settings"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
             window.center()
@@ -40,7 +40,7 @@ struct SettingsView: View {
                 if !model.barVisible {
                     Label {
                         Text(
-                            "StatBar is running but can’t be seen in the menu bar. It may be behind the camera housing or hidden by a menu bar manager. Show fewer items, choose Compact density, or hold ⌘ and drag other menu bar items out of the way."
+                            "Common Stats is running but can’t be seen in the menu bar. It may be behind the camera housing or hidden by a menu bar manager. Show fewer items, choose Compact density, or hold ⌘ and drag other menu bar items out of the way."
                         )
                     } icon: {
                         Image(systemName: "eye.slash")
@@ -85,7 +85,7 @@ struct SettingsView: View {
                         Text(loginError).foregroundStyle(.secondary)
                     }
                     if let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String {
-                        Text("StatBar \(version)").foregroundStyle(.tertiary)
+                        Text("Common Stats \(version)").foregroundStyle(.tertiary)
                             .frame(maxWidth: .infinity)
                             .padding(.top, 8)
                     }
@@ -137,7 +137,7 @@ struct SettingsView: View {
                     if enable { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
                     loginError =
                         SMAppService.mainApp.status == .requiresApproval
-                        ? "Allow StatBar in System Settings › General › Login Items." : nil
+                        ? "Allow Common Stats in System Settings › General › Login Items." : nil
                 } catch {
                     loginError = error.localizedDescription
                 }

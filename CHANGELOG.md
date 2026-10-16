@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-16
+
+### Changed
+
+- StatBar is now called Common Stats. The app installs as `Common Stats.app`; the bundle identifier is unchanged, so settings and the menu bar position carry over.
+- The website moved to Common Tools at https://oddurs.github.io/common-tools/stats/, and the repository moved to https://github.com/oddurs/common-stats. The old site at oddurs.github.io/statbar is gone.
+- The release download is now `CommonStats.zip` (with `CommonStats.zip.sha256`) instead of `StatBar-<version>.zip`, so https://github.com/oddurs/common-stats/releases/latest/download/CommonStats.zip always fetches the newest build.
+
 ## [0.1.0] - 2026-10-15
 
 ### Added
@@ -17,5 +25,6 @@ All notable changes to this project are documented here. The format follows [Kee
 - Project website at https://oddurs.github.io/statbar/.
 - Lower power use: drawing pauses while the item is hidden, sampling halves in Low Power Mode, and sampling stops while the displays sleep.
 
-[Unreleased]: https://github.com/oddurs/statbar/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/oddurs/statbar/releases/tag/v0.1.0
+[Unreleased]: https://github.com/oddurs/common-stats/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/oddurs/common-stats/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/oddurs/common-stats/releases/tag/v0.1.0

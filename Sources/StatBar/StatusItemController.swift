@@ -15,6 +15,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     init(model: AppModel) {
         self.model = model
         super.init()
+        // The pre-rename name: macOS keys the item's saved menu bar position on it.
         item.autosaveName = "StatBar"
         item.button?.imagePosition = .imageOnly
         menu.delegate = self
@@ -44,8 +45,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             button.setAccessibilityLabel(renderer.accessibilityText(model.readout))
         } else {
             // Everything hidden: keep a quiet glyph so Settings stays reachable.
-            button.image = NSImage(systemSymbolName: "chart.bar.xaxis", accessibilityDescription: "StatBar")
-            button.setAccessibilityLabel("StatBar")
+            button.image = NSImage(systemSymbolName: "chart.bar.xaxis", accessibilityDescription: "Common Stats")
+            button.setAccessibilityLabel("Common Stats")
         }
     }
 
@@ -75,7 +76,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
-        let quit = NSMenuItem(title: "Quit StatBar", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = NSMenuItem(
+            title: "Quit Common Stats", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
     }
 

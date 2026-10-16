@@ -13,7 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let id = Bundle.main.bundleIdentifier,
             NSRunningApplication.runningApplications(withBundleIdentifier: id).contains(where: isOlder)
         {
-            NSLog("StatBar: an older copy is already running; exiting")
+            NSLog("Common Stats: an older copy is already running; exiting")
             NSApp.terminate(nil)
             return
         }
