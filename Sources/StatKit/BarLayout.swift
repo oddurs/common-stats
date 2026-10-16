@@ -42,6 +42,15 @@ public enum Metric: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// The style an item gets when it's added to the menu bar.
+    public var defaultStyle: Style {
+        switch self {
+        case .cpu, .gpu: .graphValue
+        case .memory: .gaugeValue
+        case .network, .disk, .storage, .battery: .value
+        }
+    }
+
     /// Network and disk show two rates (in and out) rather than one fraction.
     public var isRatePair: Bool { self == .network || self == .disk }
 
@@ -95,7 +104,7 @@ public enum Density: String, Codable, CaseIterable, Sendable {
 
     public var name: String { rawValue.capitalized }
 
-    var itemGap: CGFloat {
+    public var itemGap: CGFloat {
         switch self {
         case .compact: 7
         case .regular: 11
@@ -160,6 +169,25 @@ public struct BarLayout: Codable, Equatable, Sendable {
         palette = (try? c.decodeIfPresent(Palette.self, forKey: .palette)) ?? d.palette
         colorInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .colorInMenuBar) ?? d.colorInMenuBar
         normalize()
+    }
+
+    /// Puts `metric` at `index` among the visible items, showing it in its
+    /// default style if it was hidden. Hidden items keep their relative order
+    /// after it, so the stored order stays stable.
+    public mutating func place(_ metric: Metric, atVisibleIndex index: Int) {
+        guard let from = items.firstIndex(where: { $0.metric == metric }) else { return }
+        var item = items.remove(at: from)
+        if item.style == .hidden { item.style = metric.defaultStyle }
+        let visibleIndices = items.indices.filter { items[$0].style != .hidden }
+        let clamped = min(max(index, 0), visibleIndices.count)
+        let at = clamped < visibleIndices.count ? visibleIndices[clamped] : (visibleIndices.last.map { $0 + 1 } ?? 0)
+        items.insert(item, at: at)
+    }
+
+    /// Takes `metric` out of the menu bar.
+    public mutating func remove(_ metric: Metric) {
+        guard let i = items.firstIndex(where: { $0.metric == metric }) else { return }
+        items[i].style = .hidden
     }
 
     /// Moves `metric` to where `target` is: after it when moving down,

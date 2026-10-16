@@ -31,14 +31,11 @@ final class SettingsWindowController {
 struct SettingsView: View {
     @Bindable var model: AppModel
     @State private var loginError: String?
-    /// The row a dragged item is hovering over, for the drop indicator.
-    @State private var dropTarget: Metric?
-    @State private var dragging: Metric?
 
     var body: some View {
         Form {
             Section {
-                BarPreview(model: model)
+                BarEditor(model: model)
             } footer: {
                 if !model.barVisible {
                     Label {
@@ -51,18 +48,6 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 }
-            }
-
-            Section {
-                ForEach($model.layout.items) { $item in
-                    row($item)
-                }
-            } header: {
-                Text("Items")
-            } footer: {
-                Text("Drag to reorder. Items appear left to right.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
 
             Section {
@@ -106,81 +91,6 @@ struct SettingsView: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func row(_ item: Binding<BarItem>) -> some View {
-        let metric = item.wrappedValue.metric
-        let shown = item.wrappedValue.style != .hidden
-        let index = model.layout.items.firstIndex { $0.metric == metric } ?? 0
-        return HStack(spacing: 8) {
-            Picker(selection: item.style) {
-                ForEach(metric.styles, id: \.self) { Text($0.name) }
-            } label: {
-                HStack(spacing: 10) {
-                    IconTile(metric: metric)
-                    Text(metric.name)
-                }
-                // Items left off the bar recede, so the shown set reads at a glance.
-                .opacity(shown ? 1 : 0.5)
-            }
-            // The handle is the drag source, so clicking the picker never starts a drag.
-            Image(systemName: "line.3.horizontal")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.tertiary)
-                .frame(width: 18, height: 22)
-                .contentShape(Rectangle())
-                .onDrag {
-                    dragging = metric
-                    return NSItemProvider(object: metric.rawValue as NSString)
-                } preview: {
-                    HStack(spacing: 8) {
-                        IconTile(metric: metric)
-                        Text(metric.name)
-                    }
-                    .padding(6)
-                }
-                .help("Drag to reorder")
-                .accessibilityHidden(true)
-        }
-        .dropDestination(for: String.self) { names, _ in
-            guard let name = names.first, let moved = Metric(rawValue: name) else { return false }
-            withAnimation(.snappy(duration: 0.2)) { model.layout.move(moved, onto: metric) }
-            dropTarget = nil
-            dragging = nil
-            return true
-        } isTargeted: { targeted in
-            if targeted { dropTarget = metric } else if dropTarget == metric { dropTarget = nil }
-        }
-        .overlay(alignment: dropEdge(for: metric, at: index)) {
-            if dropTarget == metric, dragging != metric {
-                Capsule().fill(Color.accentColor).frame(height: 2).offset(
-                    y: dropEdge(for: metric, at: index) == .top ? -5 : 5)
-            }
-        }
-        // Dragging is invisible to VoiceOver and keyboard users; these are the accessible path.
-        .contextMenu {
-            Button("Move Up") { move(index, by: -1) }.disabled(index == 0)
-            Button("Move Down") { move(index, by: 1) }.disabled(index == model.layout.items.count - 1)
-        }
-        .accessibilityActions {
-            Button("Move Up") { move(index, by: -1) }
-            Button("Move Down") { move(index, by: 1) }
-        }
-    }
-
-    /// A dragged item lands before a row above it and after a row below it;
-    /// the indicator sits on that edge.
-    private func dropEdge(for target: Metric, at index: Int) -> Alignment {
-        guard let dragging, let from = model.layout.items.firstIndex(where: { $0.metric == dragging }) else {
-            return .top
-        }
-        return from < index ? .bottom : .top
-    }
-
-    private func move(_ index: Int, by offset: Int) {
-        let target = index + offset
-        guard model.layout.items.indices.contains(target) else { return }
-        model.layout.items.swapAt(index, target)
-    }
-
     private var openAtLogin: Binding<Bool> {
         Binding(
             get: { SMAppService.mainApp.status == .enabled },
@@ -194,29 +104,6 @@ struct SettingsView: View {
                     loginError = error.localizedDescription
                 }
             })
-    }
-}
-
-/// The live bar, drawn by the same renderer as the menu bar.
-private struct BarPreview: View {
-    let model: AppModel
-
-    var body: some View {
-        let height = NSStatusBar.system.thickness
-        let renderer = BarRenderer(layout: model.layout, height: height)
-        Group {
-            if let image = renderer.image(model.readout) {
-                // A colour bar draws its own colours; a template one takes the label colour.
-                Image(nsImage: image)
-                    .renderingMode(model.layout.colorInMenuBar ? .original : .template)
-                    .foregroundStyle(.primary)
-            } else {
-                Text("Nothing in the menu bar").font(.callout).foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: height + 12)
-        .accessibilityElement()
-        .accessibilityLabel("Preview: \(renderer.accessibilityText(model.readout))")
     }
 }
 

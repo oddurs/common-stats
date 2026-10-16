@@ -198,3 +198,48 @@ struct ReorderAndColorTests {
         #expect(mono.size == color.size)
     }
 }
+
+struct PreviewEditingTests {
+    func visible(_ l: BarLayout) -> [Metric] { l.visible.map(\.metric) }
+
+    @Test func addingAHiddenItemShowsItAtThePosition() {
+        var l = BarLayout.standard  // visible: cpu, memory, network
+        l.place(.gpu, atVisibleIndex: 1)
+        #expect(visible(l) == [.cpu, .gpu, .memory, .network])
+        #expect(l.items.first { $0.metric == .gpu }?.style == Metric.gpu.defaultStyle)
+    }
+
+    @Test func addingAtTheEndAndBeyond() {
+        var l = BarLayout.standard
+        l.place(.battery, atVisibleIndex: 99)
+        #expect(visible(l) == [.cpu, .memory, .network, .battery])
+    }
+
+    @Test func reorderingKeepsTheStyle() {
+        var l = BarLayout.standard
+        l.place(.network, atVisibleIndex: 0)
+        #expect(visible(l) == [.network, .cpu, .memory])
+        #expect(l.items.first { $0.metric == .network }?.style == .value)
+    }
+
+    @Test func movingRightPastItself() {
+        var l = BarLayout.standard
+        // Dropped after memory: index 2 counted before the item left its slot is index 1 after.
+        l.place(.cpu, atVisibleIndex: 1)
+        #expect(visible(l) == [.memory, .cpu, .network])
+    }
+
+    @Test func removingHidesWithoutLosingTheItem() {
+        var l = BarLayout.standard
+        l.remove(.memory)
+        #expect(visible(l) == [.cpu, .network])
+        #expect(l.items.count == Metric.allCases.count)
+    }
+
+    @Test func addingToAnEmptyBar() {
+        var l = BarLayout(
+            items: Metric.allCases.map { BarItem($0, .hidden) }, showCaptions: true, density: .regular, interval: 1)
+        l.place(.disk, atVisibleIndex: 0)
+        #expect(visible(l) == [.disk])
+    }
+}
