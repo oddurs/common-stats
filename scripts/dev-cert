@@ -1,0 +1,35 @@
+#!/bin/sh
+set -eu
+# Creates a self-signed code signing certificate in the login keychain, once, shared by every
+# Common Tools app.
+#
+# macOS ties permissions such as Accessibility, and login items, to an app's signature. Ad-hoc
+# signatures change with every build, so every rebuild loses them. A certificate that stays put
+# keeps them. scripts/task build signs with it whenever it's there.
+
+name="Common Tools Development"
+keychain="$HOME/Library/Keychains/login.keychain-db"
+
+if security find-certificate -c "$name" "$keychain" >/dev/null 2>&1; then
+    echo "==> '$name' is already in the login keychain; nothing to do"
+    exit 0
+fi
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+
+echo "==> generating '$name' (valid ten years)"
+# The system LibreSSL writes PKCS#12 files that security import can read; OpenSSL 3 needs -legacy.
+/usr/bin/openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+    -subj "/CN=$name" \
+    -addext "basicConstraints=critical,CA:false" \
+    -addext "keyUsage=critical,digitalSignature" \
+    -addext "extendedKeyUsage=critical,codeSigning" \
+    -keyout "$work/key.pem" -out "$work/cert.pem"
+/usr/bin/openssl pkcs12 -export -inkey "$work/key.pem" -in "$work/cert.pem" \
+    -name "$name" -out "$work/identity.p12" -passout pass:common-tools
+
+echo "==> importing into the login keychain, usable by codesign"
+security import "$work/identity.p12" -k "$keychain" -P common-tools -T /usr/bin/codesign >/dev/null
+
+echo "==> done. Rebuild with scripts/task build, then grant any permission an app asks for once more."
