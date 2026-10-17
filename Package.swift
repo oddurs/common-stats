@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "StatBar",
+    name: "CommonStats",
     platforms: [.macOS(.v14)],
     targets: [
         .target(

@@ -111,6 +111,7 @@ func rounded(_ r: CGRect, _ radius: CGFloat) -> CGPath {
 
 // MARK: - Glyph
 
+// standard:begin glyph
 func glyph(_ ctx: CGContext) {
     let panel = CGRect(x: 232, y: 272, width: 560, height: 480)
     glass(ctx, rounded(panel, 100))
@@ -146,6 +147,7 @@ func glyph(_ ctx: CGContext) {
     ctx.setFillColor(rgb(0x1a6ff0));
     ctx.fillEllipse(in: CGRect(x: pts.last!.x - 14, y: pts.last!.y - 14, width: 28, height: 28))
 }
+// standard:end glyph
 
 func render(_ px: Int, _ glyph: (CGContext) -> Void) -> Data {
     let rep = NSBitmapImageRep(

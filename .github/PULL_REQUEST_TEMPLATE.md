@@ -8,10 +8,13 @@
 
 ## Look at sceptically
 
-<!-- Where this is weakest: assumptions, untested paths, accuracy arguments. -->
+<!-- Where this is weakest: assumptions, untested paths, what you couldn't try. -->
 
 ## Checklist
 
 - [ ] `scripts/task check` passes locally
 - [ ] Bug fixes include the test that would have caught them
+- [ ] User-facing changes are under `## [Unreleased]` in `CHANGELOG.md`
+<!-- standard:begin checklist -->
 - [ ] UI changes include before/after snapshots (`.build/debug/StatBar --snapshot`)
+<!-- standard:end checklist -->
